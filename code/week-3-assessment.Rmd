@@ -1,0 +1,570 @@
+---
+title: "Week 3 Assessment"
+author: "Gopika Balasubramanian"
+date: "2025-09-21"
+output: 
+      pdf_document:
+              latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(results = 'hide', echo = FALSE)
+library(rio)
+library(knitr)
+library(ggplot2)
+library(ggpubr)
+library(viridis)
+library(RColorBrewer)
+library(cowplot)
+library(tidyverse)
+library(dplyr)
+library(skimr)
+library(here)
+library(tinytex)
+library (janitor)
+library(gghighlight)
+tinytex::install_tinytex(force = TRUE)
+```
+# Exercise 1
+# Reproducing and arranging ggplot2 figures
+## Plot 1
+As a first step, the required dataset 'cleaned_NHANES.csv' was imported. The first plot provided shows the age distribution stratified by gender (RIAGENDR). In the NHANES raw data, as per the data dictionary for RIAGENDR variable, Male is coded as 1 and Female is coded as 2. To retain the same colour coding in the reproduced plot, the fill colours were assigned manually. Further, as the provided plot only included age distribution from 20 years onwards, age was filtered to 20 or above in the dataset before plotting. Binwidth was set to 5 to ensure each bin covered 5 years, axes and category labels were appropriately added.
+
+```{r}
+# first the required dataset is imported
+nhanes_data <- import(here("cleaned_NHANES.csv"))
+
+# recreating the first plot summarising the number of individuals across age groups, by gender
+# note that the first plot only starts from 20 years onwards, so first filter data by age =>20
+age_data <- nhanes_data %>% 
+                          filter(age == 20 | age > 20) 
+
+age_count_plot <- ggplot(age_data, aes(x = age, fill = gender)) + 
+                  geom_histogram(
+                    binwidth = 5, position = "dodge") +
+                  scale_fill_manual(
+                    values = c("salmon", "#00BFC4"),
+                    labels = c("Male", "Female")
+                    ) +
+                  labs(x = "Age (years)", y = "Number of individuals", fill = "Gender") +
+                  theme (
+                    axis.title = element_text(size = 14),
+                    legend.title = element_text(size = 14),
+                    legend.text = element_text(size = 12),
+                    axis.text = element_text(size = 12)
+                  )
+          
+ggsave(filename = "Ex1_age_count_plot.png",
+  plot = age_count_plot,
+  path = here("figures"),
+  width = 8, height = 6
+  )
+print(age_count_plot)
+```
+
+## Plot 2
+Before the modification of the second plot, the unique values in ethnicity_1 and ethnicity_2 variables were compared to identify which corresponded to RIDRETH3 in the raw data. To match the order of categories of the given plot, the categories were re-levelled. Position = 'fill' was provided within the geom_bar() input to ensure proportion was plotted. 
+
+```{r plot 2}
+# recreating the second plot displaying the proportion of males and females in each ethnicity category
+# figuring out which ethnicity column corresponds to RIDRETH3
+unique(nhanes_data$ethnicity_1)
+unique(nhanes_data$ethnicity_2)
+# we see with the presence of Asian category that ethnicity_2 corresponds to RIDRETH3
+
+ethnicity_prop_plot <- ggplot(nhanes_data, 
+                              aes(x = forcats::fct_relevel(
+                                ethnicity_2, "Mexican", "Other Hispanic", "White", 
+                                "Black", "Asian",
+                                "Other"), fill = gender)) +
+                        geom_bar(position = "fill") +
+                        scale_fill_manual(
+                          values = c("salmon", "#00BFC4"),
+                          labels = c("Male", "Female")
+                           ) +
+                         labs(x = "Race / Ethnicity", y = "Proportion of individuals", 
+                              fill = "Gender") +
+                         theme (
+                                axis.title = element_text(size = 14),
+                                legend.title = element_text(size = 14),
+                                legend.text = element_text(size = 12),
+                                axis.text = element_text(size = 10)
+                              )
+ggsave(filename = "Ex1_eth_prop_plot.png",
+  plot = ethnicity_prop_plot,
+  path = here("figures"),
+  width = 8, height = 6
+  )
+print(ethnicity_prop_plot)
+```
+
+## Using cowplot to combine both plots
+
+The plot_grid() function from cowplot package was used to combine the graphs.
+
+```{r cow}
+combine_cow <- plot_grid(
+  age_count_plot,
+  ethnicity_prop_plot,
+  nrow = 2,
+  ncol = 1)
+
+ggsave(filename = "Ex1_comb_cow.png",
+  plot = combine_cow,
+  path = here("figures"),
+  width = 10, height = 8
+  )
+print(combine_cow)
+```
+
+## Using ggarrange() to combine both plots
+Next, the same two plots were combined using ggarrange().
+
+## Comparing the plots combined via two methods
+On comparing the two methods for combining plots, the layout provided by ggarrange looks better since it saves space and avoids redundancy by retaining the legend only once. Thus, for cases like this where the legends across the plots to be combined is the same, the ggrrange() function offers an efficient way to avoid legend repition by setting common.legend = TRUE.
+
+```{r ggarrange}
+combine_arrange <- ggarrange(
+  age_count_plot,
+  ethnicity_prop_plot,
+  nrow = 2,
+  ncol = 1,
+  common.legend = TRUE, legend = "top")
+
+ggsave(filename = "Ex1_comb_arrange.png",
+  plot = combine_arrange,
+  path = here("figures"),
+  width = 10, height = 8
+  )
+print(combine_arrange)
+```
+
+# Exercise 2
+# Visualizing key characteristics
+Age:
+Peak of the distribution occurs within the younger age groups, particularly around 10-15 years, indicating more individuals belong to these age groups. There is a sharp decline by 25 years old, after which the distribution is more or less even or consistent across age groups until 60 years old. After 60 years, there seems to be a declining trend, with fewer individuals comprising older age groups. Interestingly, the counts near 80 years seems to be against this trend with an increase - however, it must be noted that they way the data is coded - all above 80 years were also bunched up in this category. Therefore, the increase at 80 years might just be an artefact.
+There were no missing values in this column as checked using sum(is.na()).
+
+```{r age_plot}
+# check the missingness of age
+sum(is.na(nhanes_data$age))
+
+# plot the distribution of age
+age_overall <-  ggplot(nhanes_data, aes(x = age)) +
+                geom_histogram(fill = "lightgrey", binwidth = 5, color = "black") +
+                labs(x = "Age (years)", y = "Number of individuals", 
+                     title = "Age distribution") +
+                theme_minimal() +
+                  theme (
+                        plot.title = element_text(hjust = 0.5, size = 16),
+                        axis.title = element_text(size = 14),
+                        legend.title = element_text(size = 14),
+                        legend.text = element_text(size = 12),
+                        axis.text = element_text(size = 12)
+                         )
+age_overall
+ggsave(filename = "Ex2_age_overall.png",
+  plot = age_overall,
+  path = here("figures"),
+  width = 8, height = 6
+  )
+knitr::include_graphics(here("figures", "Ex2_age_overall.png"))
+```
+
+Gender:
+There are 14948 males and 14452 females in the dataset, as displayed in the bar plot. There were no missing values in gender variable.
+
+```{r gender}
+# check missingness of gender data
+sum(is.na(nhanes_data$gender))
+
+# plot distribution of gender
+gender_overall <- ggplot(nhanes_data, aes(x = gender, fill = gender)) +
+                  geom_bar(width = 0.3) +
+                  geom_text(aes(label = after_stat(count)), stat = "count", vjust = -0.5) +
+                  labs(x = "Gender", y = "Number of individuals", 
+                                     title = "Gender distribution") +
+                                theme_minimal() +
+                                  theme (
+                                        plot.title = element_text(hjust = 0.5, size = 16),
+                                        axis.title = element_text(size = 14),
+                                        legend.title = element_text(size = 14),
+                                        legend.text = element_text(size = 12),
+                                        axis.text = element_text(size = 12),
+                                        legend.position = "none"
+                                         )
+gender_overall
+ggsave(filename = "Ex2_gender_overall.png",
+  plot = gender_overall,
+  path = here("figures"),
+  width = 4, height = 3
+  )
+knitr::include_graphics(here("figures", "Ex2_gender_overall.png"))
+```
+
+Ethnicity_1:
+According to the distribution of ethnicities (by ethnicity_1), persons identifying as White comprised the majority, followed by Black and Mexican. Other races also comprised a substantial number of individuals, greater than those in Other Hispanic category alone. There was no missing data in this column.
+
+```{r ethnicity_1}
+# check missingness of ethnicity_1 data
+sum(is.na(nhanes_data$ethnicity_1))
+
+# plot distribution of ethnicity_1
+ethnicity_1_overall <- ggplot(nhanes_data, aes(x = forcats::fct_relevel(
+                                ethnicity_1, "Mexican", "Other Hispanic", "White", 
+                                "Black", "Other"))) +
+                  geom_bar(width = 0.4) +
+                  geom_text(aes(label = after_stat(count)), stat = "count", vjust = -0.5) +
+                  labs(x = "Race / ethnicity", y = "Number of individuals", 
+                                     title = "Ethnicity distribution - plot 1") +
+                                theme_minimal() +
+                                  theme (
+                                        plot.title = element_text(hjust = 0.5, size = 16),
+                                        axis.title = element_text(size = 14),
+                                        legend.title = element_text(size = 14),
+                                        legend.text = element_text(size = 12),
+                                        axis.text = element_text(size = 12),
+                                        legend.position = "none"
+                                         )
+ethnicity_1_overall
+ggsave(filename = "Ex2_eth_1_overall.png",
+  plot = ethnicity_1_overall,
+  path = here("figures"),
+  width = 4, height = 3
+  )
+knitr::include_graphics(here("figures", "Ex2_eth_1_overall.png"))
+```
+
+Ethnicity_2:
+According to the distribution of ethnicities (by ethnicity_2 which included Asian as a category), persons identifying as White still comprised the majority, followed by Black, Mexican, Asian, Other Hispanic and Other races. There was no missing data in this column. It is observed that 'Asian' was a subset of the 'Other' category as coded in ethnicity_1. There were no missing values in this column.
+
+```{r}
+# check missingness of ethnicity_2
+sum(is.na(nhanes_data$ethnicity_2))
+
+# plot distribution of ethnicity_2
+ethnicity_2_overall <- ggplot(nhanes_data, aes(x = forcats::fct_relevel(
+                                ethnicity_2, "Mexican", "Other Hispanic", "White", 
+                                "Black", "Asian", "Other"))) +
+                  geom_bar(width = 0.4) +
+                  geom_text(aes(label = after_stat(count)), stat = "count", vjust = -0.5) +
+                  labs(x = "Race / ethnicity", y = "Number of individuals", 
+                                     title = "Ethnicity distribution - plot 2") +
+                                theme_minimal() +
+                                  theme (
+                                        plot.title = element_text(hjust = 0.5, size = 16),
+                                        axis.title = element_text(size = 14),
+                                        legend.title = element_text(size = 14),
+                                        legend.text = element_text(size = 12),
+                                        axis.text = element_text(size = 12),
+                                        legend.position = "none"
+                                         )
+ethnicity_2_overall
+ggsave(filename = "Ex2_eth_2_overall.png",
+  plot = ethnicity_2_overall,
+  path = here("figures"),
+  width = 4, height = 3
+  )
+knitr::include_graphics(here("figures", "Ex2_eth_2_overall.png"))
+```
+
+All plots were saved using ggsave() function.
+It was decided to keep the ethnicity_2 variable over ethnicity_1 as it provided more granular data. If needed 'Asian' could later be categorized as 'Other' in future, but getting information on 'Asian' from 'Other' would be less feasible.
+
+```{r}
+nhanes_data <- nhanes_data %>% 
+                select(-ethnicity_1)
+```
+
+# Exercise 3
+# Improving ggplot figure
+The graph produced by the colleague seems a bit cluttered with many criss-crossing lines and is hard to follow in terms of whether the participants' body weights are increasing or decreasing or unchanged. While an attempt has been made to show the change in weight data for every participant, it is hard to take away the key message from the current plot. While x and y axis seem mostly okay, and need minor adjustments (the units of body weight could be added, however this is not provided in the dataset either, but is likely in kilograms).
+
+To improve the plot, the idea was to facet the current plot (weight over weeks) by participant baseline weight categories and further to highlight the data by whether the body weight for the participant increased, decreased, or remained unchanged from Week 0 to Week 16. This was done as the goal of the plotting project was to see how the diet intervention impacted the change in body weight over period of time compared to baseline. Further, faceting would help make the data less crowded overall and while also providing an opportunity to check if the patterns of weight change have any relationship with the baseline weight categories.
+
+The revised plot makes it clearer to understand at the outset that not all patients experienced a decrease in body weight. There were at least few patients for whom the body weight increased or remained unchanged over the course of time at week 16 compared to week 0. Further, more patients in this experiment started with a baseline weight of 80 to 90 kgs and of them most experienced a decrease in body weight by week 16 (5 of 7 participants). In 60 - 70 kgs baseline weight category, 2 of 3 participants experienced a decline, while none of the 4 participants with 70 - 80 kgs baseline weight experienced decline. More sample sizes in these categories are needed to investigate whether diet intervention would produce a considerable effect in these patients. Interestingly, for those participants with higher end baseline weight category (90 - 100 kg), there was a 50-50 pattern of diet decreasing vs. remaining unchanged / increasing. Therefore, while overall around 50% of the participants have experienced a decline in body weight by week 16, further study could be done to evaluate if these patterns are affected by body weight at baseline.
+
+```{r}
+# first import relevant data
+diet_data <- import(here("diet.csv"))
+
+# preliminary plot - scatter plot of weight difference vs. baseline weight
+# this was done to check the feasibility of faceting by baseline weights
+#weight_change <- diet_data %>% 
+  #filter(Week %in% c(0,16)) %>% 
+ # pivot_wider(names_from = Week,
+              #values_from = Weight,
+              #names_prefix = "Week_") %>% 
+ # mutate(Weight_diff = Week_16 - Week_0)
+#weight_change
+  
+  #ggplot(weight_change, aes(x = Week_0, y = Weight_diff)) +
+ # geom_point()
+
+```
+
+```{r}
+# Goal is to create a figure that clearly depicts each participant's weight change over time,
+# specifically in comparison to their baseline weight at week 0
+
+# first week 0 and week 16 data were filtered and new columns with weight difference (characterised as decreased, no change, increased based on numeric value of weight difference) and baseline weight category was created
+diet_result_categories <- diet_data %>% 
+                  filter (Week %in% c(0,16)) %>% 
+                  pivot_wider(names_from = Week,
+                              values_from = Weight,
+                              names_prefix = "Week_") %>% 
+                  mutate(
+                    Weight_diff = Week_16 - Week_0,
+                    Baseline_Weight = case_when(
+                           Week_0 >= 60 & Week_0 < 70 ~ "Baseline bodyweight 60 - 70 kgs",
+                           Week_0 >= 70 & Week_0 < 80 ~ "Baseline bodyweight 70 - 80 kgs",
+                           Week_0 >= 80 & Week_0 < 90 ~ "Baseline bodyweight 80 - 90 kgs",
+                           Week_0 > 90 & Week_0 <= 100 ~ "Baseline bodyweight 90 - 100 kgs")) %>% 
+                  mutate(
+                    Weight_diff_text = case_when(
+                            Weight_diff < 0 ~ "Decreased",
+                            Weight_diff == 0 ~ "No change",
+                            Weight_diff > 0 ~ "Increased"
+                  )) %>% 
+                  select(-Week_16, -Weight_diff, - Week_0)
+diet_result_categories
+
+# then using left_join, the baseline weight category data and weight difference (decrease/increase/no change) was added to the main diet data set.
+
+diet_plot_data <- left_join(diet_data, diet_result_categories, by = "Participant")
+diet_plot_data
+
+# Body weight over weeks was plotted using line graph representing each participant
+diet_findings <- ggplot(diet_plot_data, aes(x = Week, 
+                           y = Weight, 
+                           group = Participant, 
+                           color = Weight_diff_text)) +
+                  geom_line() +
+                  
+                  facet_wrap(~Baseline_Weight) +
+                  scale_color_brewer(palette = "Dark2") +
+                  labs(
+                      x = "Week", 
+                      y = "Body weight (kgs)", 
+                      title = "Effects of diet intervention on body weight", 
+                      color = "Change in body weight from baseline"
+                    ) +
+                  theme(
+                    plot.title.position = "plot",
+                    plot.title = element_text(hjust = 0.5, size = 16),
+                    axis.title = element_text(size = 14),
+                    legend.title = element_text(size = 12),
+                    legend.text = element_text(size = 10),
+                    legend.position = "top",
+                    axis.text = element_text(size = 12)
+                        )
+ggsave(filename = "Ex3_diet.png",
+  plot = diet_findings,
+  path = here("figures"),
+  width = 8, height = 6
+  )
+print(diet_findings)
+```
+
+# Exercise 4
+# Exploring relationships through visualizations
+
+The objective of the present report was to evaluate the distribution of individuals across hypertension categories (as indicated and characterised by systolic blood pressure measurements) within the NHANES data set. Further, the prevalence of hypertension  across demographic variables like age and gender were also investigated.
+
+Only those participants with at least one systolic blood pressure measurement data (out of four possible) were considered as part of the analysis. Further, to ensure full correspondence of blood pressure data and demographic data, individuals with missing age or gender data were not considered.
+
+An average of all available systolic blood pressure measurements was computed per individual, which was used as the main blood pressure measure to categorize patients across different hypertension categories as per indicated clinical cut-offs.
+The categories were: Normal (SBP < 120 mm Hg), Elevated (120 - 129 mm Hg), Stage 1 hypertension (130 - 139 mm Hg), and Stage 2 hypertension (>= 140 mmHg).
+
+```{r}
+# creating average SBP variable, only for those with non-missing SBPs
+avg_sys_data <- nhanes_data %>% 
+  mutate(
+    average_systolic = ifelse(
+      rowSums(is.na(across(c(systolic_bp_1, systolic_bp_2, systolic_bp_3, systolic_bp_4)))) == 4,
+      NA_real_,
+      rowMeans(across(c(systolic_bp_1, systolic_bp_2, systolic_bp_3, systolic_bp_4)), na.rm = TRUE)
+      )
+      )
+avg_sys_data
+
+# using filter to only those with non-missing age, gender and average SBP
+
+modified_nhanes_data <- avg_sys_data %>% 
+  filter(!is.na(age) & !is.na(gender) & !is.na(average_systolic))
+modified_nhanes_data
+
+# adding a new categorical variable to this dataset
+modified_nhanes_data <- modified_nhanes_data %>% 
+  mutate(
+    bp_status = case_when(
+      average_systolic < 120 ~ "Normal",
+      average_systolic >= 120 & average_systolic < 130 ~ "Elevated",
+      average_systolic >= 130 & average_systolic < 140 ~ "Stage 1 hypertension",
+      average_systolic >= 140 ~ "Stage 2 hypertension"
+    )
+  )
+
+```
+
+The filtered and modified datasets contains 21,604 unique observations corresponding to individuals with non-missing average systolic blood pressure measurement and age, gender data. The reduction from 29,400 observations in the original data set indicates that 7,796 rows were discarded due to missing age, gender, or average systolic blood pressure measurements. Few characteristics of the sample data set were investigated via visualizations.
+
+Age: age distribution of individuals in the modified data set was similar to the full data set, however general decrease in counts across all ages and particularly among younger (< 15 year olds) was noted.
+
+```{r}
+# creating plots
+# age distribution
+age_subset <-  ggplot(modified_nhanes_data, aes(x = age)) +
+                geom_histogram(fill = "lightgrey", binwidth = 5, color = "black") +
+                labs(x = "Age (years)", y = "Number of individuals", 
+                     title = "Age distribution") +
+                theme_minimal() +
+                  theme (
+                        plot.title = element_text(hjust = 0.5, size = 16),
+                        axis.title = element_text(size = 14),
+                        legend.title = element_text(size = 14),
+                        legend.text = element_text(size = 12),
+                        axis.text = element_text(size = 12)
+                         )
+age_subset
+ggsave(filename = "Ex4_age.png",
+  plot = age_subset,
+  path = here("figures"),
+  width = 4, height = 3
+  )
+knitr::include_graphics(here("figures", "Ex4_age.png"))
+```
+
+Gender: The distribution of males and females were similar in full dataset and the present subset data, with slightly higher number of females than males in both. The removal of rows impacted both genders similarly.
+
+```{r}
+# gender distribution
+
+# plot distribution of gender
+gender_subset <- ggplot(modified_nhanes_data, aes(x = gender, fill = gender)) +
+                  geom_bar(width = 0.3) +
+                  coord_cartesian(ylim = c(0,15000)) +
+                  geom_text(aes(label = after_stat(count)), stat = "count", vjust = -0.5) +
+                  labs(x = "Gender", y = "Number of individuals", 
+                                     title = "Gender distribution (subset)") +
+                                theme_minimal() +
+                                  theme (
+                                        plot.title = element_text(hjust = 0.5, size = 16),
+                                        axis.title = element_text(size = 14),
+                                        legend.title = element_text(size = 14),
+                                        legend.text = element_text(size = 12),
+                                        axis.text = element_text(size = 12),
+                                        legend.position = "none"
+                                         )
+
+
+compare_gender <- ggarrange(gender_overall, gender_subset, ncol = 2, nrow = 1, align = "v")
+ggsave(filename = "Ex4_compare_gender.png",
+  plot = compare_gender,
+  path = here("figures"),
+  width = 8, height = 6
+  )
+print(compare_gender)
+```
+
+Hypertension categories: Most individuals had normal average SBP, followed elevated SBP. 
+Slightly more individuals had Stage 2 hypertension compared to Stage 1 hypertension.
+
+```{r}
+hypertension_cat <- ggplot(modified_nhanes_data, aes(x = forcats::fct_relevel(
+                                bp_status, "Normal", "Elevated", "Stage 1 hypertension", 
+                                "Stage 2 hypertension"), fill = bp_status)) +
+                  geom_bar(width = 0.3) +
+                  scale_fill_brewer(palette = "Set2") +
+                  geom_text(aes(label = after_stat(count)), stat = "count", vjust = -0.5) +
+                  labs(x = "Hypertension category", y = "Number of individuals", 
+                                     title = "Hypertension Category Distribution") +
+                                theme_minimal() +
+                                  theme (
+                                        plot.title = element_text(hjust = 0.5, size = 16),
+                                        axis.title = element_text(size = 14),
+                                        legend.title = element_text(size = 14),
+                                        legend.text = element_text(size = 12),
+                                        axis.text = element_text(size = 10),
+                                        legend.position = "none"
+                                         )
+hypertension_cat
+ggsave(filename = "Ex4_hypertension.png",
+  plot = hypertension_cat,
+  path = here("figures"),
+  width = 4, height = 3
+  )
+knitr::include_graphics(here("figures", "Ex4_hypertension.png"))
+```
+
+Ethnicity: ethnicity distribution was similar to the full dataset. White comprised the majority, followed by Black, Mexican, Asian, Other Hispanic, and Other categories.
+
+```{r}
+ethnicity_2_subset <- ggplot(modified_nhanes_data, aes(x = forcats::fct_relevel(
+                                ethnicity_2, "Mexican", "Other Hispanic", "White", 
+                                "Black", "Asian", "Other"))) +
+                  geom_bar(width = 0.4) +
+                  geom_text(aes(label = after_stat(count)), stat = "count", vjust = -0.5) +
+                  labs(x = "Race / ethnicity", y = "Number of individuals", 
+                                     title = "Ethnicity distribution (subset)") +
+                                theme_minimal() +
+                                  theme (
+                                        plot.title = element_text(hjust = 0.5, size = 16),
+                                        axis.title = element_text(size = 14),
+                                        legend.title = element_text(size = 14),
+                                        legend.text = element_text(size = 12),
+                                        axis.text = element_text(size = 12),
+                                        legend.position = "none"
+                                         )
+ethnicity_2_subset
+ggsave(filename = "Ex4_eth.png",
+  plot = ethnicity_2_subset,
+  path = here("figures"),
+  width = 4, height = 3
+  )
+knitr::include_graphics(here("figures", "Ex4_eth.png"))
+```
+
+The pattern of prevalence of hypertension stages across age and gender categories were investigated via visualization. Most individuals in young age groups (< 24 years old), irrespective of gender, typically had normal average SBP. In these age groups (0 - 17 and 18 - 24 years), elevated SBP or stage 1 or stage 2 hypertension were less prevalent. The shift in pattern was noticeable for the 25 - 40 years age group with more individuals having elevated SBP and stage 1 or 2 hypertension (elevated SBP was higher than stage 1 or 2). The progressive shift in pattern continued into the next age group where prevalence of non-normal SBP categories became more pronounced. However, for both these age categories - participants with normal SBP were still the majority. In the oldest age group, of 60 years or older individuals, the prevalence of stage 2 hypertension was very pronounced and comprised the majority while those with normal SBP, elevated SBP or stage 1 hypertension were similarly distributed.
+
+The age related differences noticed were consistent for both males and females. In terms of differences in patters by gender, one noticeable finding was that difference between number of individuals with normal SBP and non-normal SBP tended to be sharper for females compared to males for those in 18 - 24, 25 - 39, and 40 - 59 year groups (difference was less for males). This was not noticeably different for those in the youngest age group. In the oldest age group, the difference between those in stage 2 hypertension vs. other categories was more stark for females compared to males.
+
+```{r}
+modified_nhanes_data <- modified_nhanes_data %>%
+  mutate(bp_status_ordered = forcats::fct_relevel(bp_status, "Normal", "Elevated", "Stage 1 hypertension", "Stage 2 hypertension"))
+hyper_age_gender <- ggplot(modified_nhanes_data, 
+                      aes(x = bp_status_ordered, fill = bp_status_ordered)) +
+                  geom_bar() +
+                  labs(y = "Number of individuals", x = "Hypertension category", fill ="") +
+                  scale_fill_brewer(palette = "Reds") +
+                  facet_grid(gender~age_cat,
+                             labeller = labeller(
+                               age_cat = c(
+                                 '0-17' = "Age 0 - 17 years",
+                                 '18-24' = "Age 18 - 24 years",
+                                 '25-39' = "Age 25 - 39 years",
+                                 '40-59' = "Age 40 - 59 years",
+                                 '60+' = "Age 60+ years"
+                               )
+                             )) +
+                  
+                  theme_light()+
+                  theme (
+                     plot.title = element_text(hjust = 0.5, size = 16),
+                                          axis.title = element_text(size = 14),
+                                          legend.title = element_text(size = 14),
+                                          legend.text = element_text(size = 12),
+                                          axis.text.x = element_blank(),
+                                          legend.position = "top"
+                                           )
+hyper_age_gender
+ggsave(filename = "Ex4_hyper_age_gender.png",
+  plot = hyper_age_gender,
+  path = here("figures"),
+  width = 8, height = 6
+  )
+knitr::include_graphics(here("figures", "Ex4_hyper_age_gender.png"))
+```
+
+
+
