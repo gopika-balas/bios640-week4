@@ -1,10 +1,14 @@
 ---
-title: "Week 3 Assessment"
+title: "Week 3 Assessment - Modified"
 author: "Gopika Balasubramanian"
-date: "2025-09-21"
+date: "2025-09-28"
 output: 
-      pdf_document:
-              latex_engine: xelatex
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: true
+    toc_float: true
+    toc_depth: 1
 ---
 
 ```{r setup, include=FALSE}
@@ -23,16 +27,34 @@ library(here)
 library(tinytex)
 library (janitor)
 library(gghighlight)
+library(DT)
 tinytex::install_tinytex(force = TRUE)
 ```
 # Exercise 1
-# Reproducing and arranging ggplot2 figures
-## Plot 1
+## Reproducing and arranging ggplot2 figures
+## Individual plots
+### Plot 1
 As a first step, the required dataset 'cleaned_NHANES.csv' was imported. The first plot provided shows the age distribution stratified by gender (RIAGENDR). In the NHANES raw data, as per the data dictionary for RIAGENDR variable, Male is coded as 1 and Female is coded as 2. To retain the same colour coding in the reproduced plot, the fill colours were assigned manually. Further, as the provided plot only included age distribution from 20 years onwards, age was filtered to 20 or above in the dataset before plotting. Binwidth was set to 5 to ensure each bin covered 5 years, axes and category labels were appropriately added.
 
+### Plot 2
+Before the modification of the second plot, the unique values in ethnicity_1 and ethnicity_2 variables were compared to identify which corresponded to RIDRETH3 in the raw data. To match the order of categories of the given plot, the categories were re-levelled. Position = 'fill' was provided within the geom_bar() input to ensure proportion was plotted.
+
+## Combined plots
+### Using cowplot to combine both plots
+The plot_grid() function from cowplot package was used to combine the graphs.
+
+### Using ggarrange() to combine both plots
+Next, the same two plots were combined using ggarrange().
+
+## Comparing the plots combined via two methods
+On comparing the two methods for combining plots, the layout provided by ggarrange looks better since it saves space and avoids redundancy by retaining the legend only once. Thus, for cases like this where the legends across the plots to be combined is the same, the ggrrange() function offers an efficient way to avoid legend repition by setting common.legend = TRUE.
+
+## {.tabset}
+### Individual plots describing gender and ethnicity distribution 
 ```{r}
+#plot 1
 # first the required dataset is imported
-nhanes_data <- import(here("cleaned_NHANES.csv"))
+nhanes_data <- import(here("datasets/week-3-datasets", "cleaned_NHANES.csv"))
 
 # recreating the first plot summarising the number of individuals across age groups, by gender
 # note that the first plot only starts from 20 years onwards, so first filter data by age =>20
@@ -60,12 +82,9 @@ ggsave(filename = "Ex1_age_count_plot.png",
   width = 8, height = 6
   )
 print(age_count_plot)
-```
 
-## Plot 2
-Before the modification of the second plot, the unique values in ethnicity_1 and ethnicity_2 variables were compared to identify which corresponded to RIDRETH3 in the raw data. To match the order of categories of the given plot, the categories were re-levelled. Position = 'fill' was provided within the geom_bar() input to ensure proportion was plotted. 
+#plot 2
 
-```{r plot 2}
 # recreating the second plot displaying the proportion of males and females in each ethnicity category
 # figuring out which ethnicity column corresponds to RIDRETH3
 unique(nhanes_data$ethnicity_1)
@@ -96,13 +115,12 @@ ggsave(filename = "Ex1_eth_prop_plot.png",
   width = 8, height = 6
   )
 print(ethnicity_prop_plot)
+
 ```
 
-## Using cowplot to combine both plots
+### Combined plots describing gender and ethnicity distribution 
 
-The plot_grid() function from cowplot package was used to combine the graphs.
-
-```{r cow}
+```{r cow ggarrange}
 combine_cow <- plot_grid(
   age_count_plot,
   ethnicity_prop_plot,
@@ -115,15 +133,7 @@ ggsave(filename = "Ex1_comb_cow.png",
   width = 10, height = 8
   )
 print(combine_cow)
-```
 
-## Using ggarrange() to combine both plots
-Next, the same two plots were combined using ggarrange().
-
-## Comparing the plots combined via two methods
-On comparing the two methods for combining plots, the layout provided by ggarrange looks better since it saves space and avoids redundancy by retaining the legend only once. Thus, for cases like this where the legends across the plots to be combined is the same, the ggrrange() function offers an efficient way to avoid legend repition by setting common.legend = TRUE.
-
-```{r ggarrange}
 combine_arrange <- ggarrange(
   age_count_plot,
   ethnicity_prop_plot,
@@ -140,7 +150,16 @@ print(combine_arrange)
 ```
 
 # Exercise 2
-# Visualizing key characteristics
+## Visualizing key characteristics
+
+Exploring the NHANES data set (note that only first 100 rows are displayed due to dataset being large)
+```{r, results = 'markup'}
+datatable(head(nhanes_data, 1000),
+          options = list(scrollX = TRUE,
+                         pageLength = 20)
+          )
+```
+
 Age:
 Peak of the distribution occurs within the younger age groups, particularly around 10-15 years, indicating more individuals belong to these age groups. There is a sharp decline by 25 years old, after which the distribution is more or less even or consistent across age groups until 60 years old. After 60 years, there seems to be a declining trend, with fewer individuals comprising older age groups. Interestingly, the counts near 80 years seems to be against this trend with an increase - however, it must be noted that they way the data is coded - all above 80 years were also bunched up in this category. Therefore, the increase at 80 years might just be an artefact.
 There were no missing values in this column as checked using sum(is.na()).
@@ -277,7 +296,7 @@ nhanes_data <- nhanes_data %>%
 ```
 
 # Exercise 3
-# Improving ggplot figure
+## Improving ggplot figure
 The graph produced by the colleague seems a bit cluttered with many criss-crossing lines and is hard to follow in terms of whether the participants' body weights are increasing or decreasing or unchanged. While an attempt has been made to show the change in weight data for every participant, it is hard to take away the key message from the current plot. While x and y axis seem mostly okay, and need minor adjustments (the units of body weight could be added, however this is not provided in the dataset either, but is likely in kilograms).
 
 To improve the plot, the idea was to facet the current plot (weight over weeks) by participant baseline weight categories and further to highlight the data by whether the body weight for the participant increased, decreased, or remained unchanged from Week 0 to Week 16. This was done as the goal of the plotting project was to see how the diet intervention impacted the change in body weight over period of time compared to baseline. Further, faceting would help make the data less crowded overall and while also providing an opportunity to check if the patterns of weight change have any relationship with the baseline weight categories.
@@ -286,7 +305,7 @@ The revised plot makes it clearer to understand at the outset that not all patie
 
 ```{r}
 # first import relevant data
-diet_data <- import(here("diet.csv"))
+diet_data <- import(here("datasets/week-3-datasets", "diet.csv"))
 
 # preliminary plot - scatter plot of weight difference vs. baseline weight
 # this was done to check the feasibility of faceting by baseline weights
@@ -367,7 +386,7 @@ print(diet_findings)
 ```
 
 # Exercise 4
-# Exploring relationships through visualizations
+## Exploring relationships through visualizations
 
 The objective of the present report was to evaluate the distribution of individuals across hypertension categories (as indicated and characterised by systolic blood pressure measurements) within the NHANES data set. Further, the prevalence of hypertension  across demographic variables like age and gender were also investigated.
 
