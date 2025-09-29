@@ -3,6 +3,7 @@ title: "Report: NHANES sample description"
 output:
   pdf_document:
     latex_engine: xelatex
+bibliography: ref.bib  
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
@@ -23,7 +24,7 @@ library(kableExtra)
 nhanes_data <- import(here("datasets/week-3-datasets", "updated_NHANES_data.csv"))
 ```
 # Introduction
-The NHANES demographic and blood pressure data were obtained for three waves corresponding to years 2015, 2016, and 2017. Data cleaning and manipulation was performed to retain key demographic and blood pressure data. Demographic data included patient age, gender, ethnicity, education level, marital status, family size, and family income. Blood pressure data included up to four systolic and diastolic blood pressure measurements, a computed average systolic blood pressure value,and stage of hypertension as per clinical cutoffs. The final dataset for analysis excluded observations of individuals with missing average systolic blood pressure measurements, age, or gender data. This report presents a description of the final NHANES data set used for analysis.
+The NHANES demographic and blood pressure data were obtained for three waves corresponding to years 2015[@NHANES2015], 2016[@NHANES2016], and 2017[@NHANES2017]. Data cleaning and manipulation was performed to retain key demographic and blood pressure data. Demographic data included patient age, gender, ethnicity, education level, marital status, family size, and family income. Blood pressure data included up to four systolic and diastolic blood pressure measurements, a computed average systolic blood pressure value,and stage of hypertension as per clinical cutoffs. The final dataset for analysis excluded observations of individuals with missing average systolic blood pressure measurements, age, or gender data. This report presents a description of the final NHANES data set used for analysis.
 
 # Sample size
 ```{r samp, results='asis'}
@@ -129,3 +130,4 @@ kable(sbp_summary,
   row_spec(3, bold = TRUE, background = "#FFFFE0") %>%
 	add_header_above(c(" " = 1, "Average Systolic Blood Pressure" = 4))
 ```
+\newpage
