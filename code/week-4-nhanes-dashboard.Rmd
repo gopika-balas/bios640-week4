@@ -1,0 +1,54 @@
+---
+title: "NHANES Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(rio)
+library(knitr)
+library(ggplot2)
+library(ggpubr)
+library(viridis)
+library(RColorBrewer)
+library(cowplot)
+library(tidyverse)
+library(dplyr)
+library(skimr)
+library(here)
+library(tinytex)
+library (janitor)
+library(gghighlight)
+library(DT)
+library(flexdashboard)
+
+# import dataset
+cleaned_nhanes_data <- import(here("datasets/week-3-datasets", "updated_NHANES_data.csv"))
+```
+Row {data-height=650}
+--------------------------------------------
+### Age distribution
+
+```{r ethnicity description, fig.align='center'}
+knitr::include_graphics(here("figures", "Ex4_age.png"))
+```
+
+Row {data-height=350}
+--------------------------------------------
+### Percentage of individuals over 21 years
+
+```{r 21 years or older}
+percent_21_years <- round((mean(cleaned_nhanes_data$age >= 21)*100), 1)
+
+gauge(percent_21_years, min = 0, max = 100, symbol = '%',
+      gaugeSectors(colors = "black"))
+```
+
+### Percentage of individuals with average SBP above 120 mmHg
+```{r}
+high_avg_sbp <- round((mean(cleaned_nhanes_data$average_systolic > 120)*100), 2)
+valueBox(high_avg_sbp, icon = "fa-user", color = "lightpink")
+```
+--------------------------------------------
