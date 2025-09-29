@@ -1,0 +1,131 @@
+---
+title: "Report: NHANES sample description"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(rio)
+library(knitr)
+library(ggplot2)
+library(ggpubr)
+library(tidyverse)
+library(dplyr)
+library(skimr)
+library(here)
+library(rmarkdown)
+library(tinytex)
+library(kableExtra)
+```
+
+```{r}
+nhanes_data <- import(here("datasets/week-3-datasets", "updated_NHANES_data.csv"))
+```
+# Introduction
+The NHANES demographic and blood pressure data were obtained for three waves corresponding to years 2015, 2016, and 2017. Data cleaning and manipulation was performed to retain key demographic and blood pressure data. Demographic data included patient age, gender, ethnicity, education level, marital status, family size, and family income. Blood pressure data included up to four systolic and diastolic blood pressure measurements, a computed average systolic blood pressure value,and stage of hypertension as per clinical cutoffs. The final dataset for analysis excluded observations of individuals with missing average systolic blood pressure measurements, age, or gender data. This report presents a description of the final NHANES data set used for analysis.
+
+# Sample size
+```{r samp, results='asis'}
+sample_table <- table(nhanes_data$wave_id)
+sample_df <- as.data.frame(sample_table)
+
+kable(
+  sample_df,
+  format = "latex",
+  caption = "Number of respondents by wave",
+  booktabs = TRUE,
+  col.names = c("Wave", "Sample size")
+) %>%
+  kable_styling(latex_options = "hold_position") %>% 
+  row_spec(1, background = "#FFFFE0")
+```
+\newpage
+# Gender distribution
+```{r, results='asis'}
+gender_table <- table(nhanes_data$gender,
+                      nhanes_data$wave_id)
+row_percents <- prop.table(gender_table, margin = 2) * 100
+
+gender_comp_table <- as.data.frame(cbind
+                                   (colSums(gender_table),
+                                    gender_table[1,],
+                                    round(row_percents[1,],1),
+                                    gender_table[2,],
+                                    round(row_percents[2,],1)
+                                     ))
+
+kable(
+  gender_comp_table,
+  format = "latex",
+  caption = "Gender distribution of respondents by wave",
+  booktabs = TRUE,
+  col.names = c("Wave", "n","n", "%", "n", " %")
+) %>%
+  kable_styling(latex_options = "hold_position") %>% 
+  column_spec(6, background = "#FFFFE0") %>%
+  column_spec(1:2, width = "4em") %>% 
+  footnote(general = "n: Sample size", general_title = "") %>% 
+  column_spec(3:6, width = "6em") %>% 
+	add_header_above(c(" " = 1, "Total" = 1, "Female" = 2, "Male" = 2))
+
+```
+\newpage
+# Ethnicity distribution
+```{r eth, results='asis'}
+eth_table <- table(nhanes_data$ethnicity_2,
+                      nhanes_data$wave_id)
+row_eth_percents <- prop.table(eth_table, margin = 2) * 100
+
+eth_comp_table <- as.data.frame(cbind
+                                   (
+                                    eth_table[6,],
+                                    round(row_eth_percents[6,],1),
+                                    eth_table[2,],
+                                    round(row_eth_percents[2,],1),
+                                    eth_table[3,],
+                                    round(row_eth_percents[3,],1),
+                                    eth_table[1,],
+                                    round(row_eth_percents[1,],1),
+                                    eth_table[5,],
+                                    round(row_eth_percents[5,],1),
+                                    eth_table[4,],
+                                    round(row_eth_percents[4,],1)
+                                     )
+                                )
+
+kable(
+  eth_comp_table,
+  format = "latex",
+  caption = "Ethnicity distribution of respondents by wave",
+  booktabs = TRUE,
+  col.names = c("Wave","n", "%", "n", " %", "n", "%", "n", " %","n", "%", "n", " %")
+) %>%
+  kable_styling(latex_options = "hold_position") %>% 
+  column_spec(3, background = "#D1FFBD") %>%
+  column_spec(13, background = "#FFCCCB") %>% 
+  footnote(general = "n: Sample size", general_title = "") %>% 
+	add_header_above(c(" " = 1, "White" = 2, "Black" = 2, "Mexican" = 2, "Asian" = 2, "Other Hispanic" = 2, "Other Races" = 2))
+```
+\newpage
+# Average SBP 
+```{r sbp, results='asis'}
+sbp_summary <- nhanes_data %>%
+  group_by(wave_id) %>%
+  summarise("Mean" = round(mean(average_systolic, na.rm = TRUE), 1),
+     "Median" = round(median(average_systolic, na.rm = TRUE), 1),
+     "Minimum" = round(min(average_systolic, na.rm = TRUE),1),
+    "Maximum" = round(max(average_systolic, na.rm = TRUE),1))
+
+
+kable(sbp_summary,
+      format = "latex",
+      caption = "Summary statistics of average SBP",
+      booktabs = TRUE,
+  col.names = c("Wave", "Mean", "Median", "Minimum", "Maximum")
+) %>%
+  kable_styling(latex_options = "hold_position") %>% 
+  column_spec(1:5, width = "6em") %>% 
+  row_spec(3, bold = TRUE, background = "#FFFFE0") %>%
+	add_header_above(c(" " = 1, "Average Systolic Blood Pressure" = 4))
+```
