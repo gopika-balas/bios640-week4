@@ -27,6 +27,7 @@ nhanes_data <- import(here("datasets/week-3-datasets", "updated_NHANES_data.csv"
 The NHANES demographic and blood pressure data were obtained for three waves corresponding to years 2015[@NHANES2015], 2016[@NHANES2016], and 2017[@NHANES2017]. Data cleaning and manipulation was performed to retain key demographic and blood pressure data. Demographic data included patient age, gender, ethnicity, education level, marital status, family size, and family income. Blood pressure data included up to four systolic and diastolic blood pressure measurements, a computed average systolic blood pressure value,and stage of hypertension as per clinical cutoffs. The final dataset for analysis excluded observations of individuals with missing average systolic blood pressure measurements, age, or gender data. This report presents a description of the final NHANES data set used for analysis.
 
 # Sample size
+Sample sizes across waves are summarised in *Table 1*. The 2015 survey had the highest number of respondents (7,528 individuals) with sufficient data of interest. Number of respondents decreased in subsequent waves, with 2017 recording the lowest number of respondents.
 ```{r samp, results='asis'}
 sample_table <- table(nhanes_data$wave_id)
 sample_df <- as.data.frame(sample_table)
@@ -43,6 +44,7 @@ kable(
 ```
 \newpage
 # Gender distribution
+The number and percentage of female and male respondents corresponding to each wave within the analysed data set  is presented in *Table 2*. The percentage of males (highlighted) was slightly less than that of females across all waves, and remained pretty consistent around 48.6 - 49.0%.
 ```{r, results='asis'}
 gender_table <- table(nhanes_data$gender,
                       nhanes_data$wave_id)
@@ -73,6 +75,7 @@ kable(
 ```
 \newpage
 # Ethnicity distribution
+In terms of race/ethnicity composition, across waves, White individuals generally comprised the highest percentage of the respondents (31.6% to 38.2% across waves), followed by individuals identifying as Black, Mexican, Asian, and Other Hispanic. Category of races other than these generally comprised the minority (between 3.8% - 6.4%). 
 ```{r eth, results='asis'}
 eth_table <- table(nhanes_data$ethnicity_2,
                       nhanes_data$wave_id)
@@ -110,24 +113,30 @@ kable(
 ```
 \newpage
 # Average SBP 
+*Table 4* provides the summary statistics of average systolic blood pressure (SBP) across the three waves. Of note, the mean, median, and maximum values of average SBP increased through waves, with the 2017 survey reporting the highest mean and median values of average SBP. While the mean average SBP had already crossed into the elevated blood pressure category in 2016 by a small margin (considering 120 mmHg as the cutoff), the latest value clearly places the mean average SBP in the elevated blood pressure category. This persistent upward trend of mean and median SBP values highlights a potential concern.
 ```{r sbp, results='asis'}
 sbp_summary <- nhanes_data %>%
   group_by(wave_id) %>%
-  summarise("Mean" = round(mean(average_systolic, na.rm = TRUE), 1),
+  summarise(
+    "Mean (SD)" = paste0(round(mean(average_systolic, na.rm = TRUE), 1), " (", round(sd(average_systolic, na.rm = TRUE), 1), ")"),
      "Median" = round(median(average_systolic, na.rm = TRUE), 1),
-     "Minimum" = round(min(average_systolic, na.rm = TRUE),1),
-    "Maximum" = round(max(average_systolic, na.rm = TRUE),1))
+     "Minimum" = round(min(average_systolic, na.rm = TRUE), 1),
+    "Maximum" = round(max(average_systolic, na.rm = TRUE), 1))
 
 
 kable(sbp_summary,
       format = "latex",
       caption = "Summary statistics of average SBP",
+      align = "c",
       booktabs = TRUE,
-  col.names = c("Wave", "Mean", "Median", "Minimum", "Maximum")
+  col.names = c("Wave", "Mean (SD)", "Median", "Minimum", "Maximum")
 ) %>%
   kable_styling(latex_options = "hold_position") %>% 
-  column_spec(1:5, width = "6em") %>% 
+  column_spec(1, width = "4em") %>% 
+  column_spec(2, width = "10em") %>% 
+  column_spec(2:5, width = "8em") %>% 
+  footnote(general = "SD: Standard deviation", general_title = "") %>% 
   row_spec(3, bold = TRUE, background = "#FFFFE0") %>%
-	add_header_above(c(" " = 1, "Average Systolic Blood Pressure" = 4))
+	add_header_above(c(" " = 1, "Average Systolic Blood Pressure (mmmHg) " = 4))
 ```
 \newpage
